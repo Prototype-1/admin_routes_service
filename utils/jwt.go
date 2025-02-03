@@ -3,9 +3,10 @@ package utils
 import (
 	"errors"
 	"github.com/dgrijalva/jwt-go"
+	"os"
 )
 
-var jwtSecretKey = []byte("RsaGPCEv4Oy1rRzVq8rT9vyPV29DZ4yQ4X_xd0QRK") 
+var jwtSecretKey = []byte(os.Getenv("JWT_SECRET_KEY")) 
 
 func ParseJWT(tokenStr string) (uint, error) {
 	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
