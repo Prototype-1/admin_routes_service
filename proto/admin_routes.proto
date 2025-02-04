@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package routes;
 
-option go_package  = ".;routes"; 
+option go_package = ".;routes"; 
 
 service RouteService {
     rpc AddRoute (AddRouteRequest) returns (AddRouteResponse);
@@ -57,3 +57,5 @@ message Route {
     string created_at = 6;
     string updated_at = 7;
 }
+
+//protoc --go_out=. --go-grpc_out=. proto/admin_routes.proto

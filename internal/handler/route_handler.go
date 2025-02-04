@@ -3,15 +3,20 @@ package handler
 import (
 	"context"
 	"log"
+	//"errors"
+	"strconv"
+
+	//"google.golang.org/grpc/metadata"
 
 	"github.com/Prototype-1/admin_routes_service/internal/usecase"
 	pb "github.com/Prototype-1/admin_routes_service/proto"
 	"github.com/Prototype-1/admin_routes_service/internal/models"
 	"github.com/Prototype-1/admin_routes_service/utils"
+	mw "github.com/Prototype-1/admin_routes_service/internal/middleware"
 )
 
 type RouteHandler struct {
-	pb.UnimplementedRouteServiceServer 
+	pb.UnimplementedRouteServiceServer
 	RouteUsecase *usecase.RouteUsecase
 }
 
@@ -19,15 +24,30 @@ func NewRouteHandler(routeUsecase *usecase.RouteUsecase) *RouteHandler {
 	return &RouteHandler{RouteUsecase: routeUsecase}
 }
 
+func (h *RouteHandler) extractAdminID(ctx context.Context) (int, error) {
+    adminID, err := mw.GetAdminID(ctx)
+    if err != nil {
+        log.Println("Error extracting admin ID:", err)
+        return 0, err
+    }
+    log.Printf("Using Admin ID: %d", adminID)
+    return adminID, nil
+}
+
+
 func (h *RouteHandler) AddRoute(ctx context.Context, req *pb.AddRouteRequest) (*pb.AddRouteResponse, error) {
-	route := models.Route{
+	adminID, err := h.extractAdminID(ctx)
+	if err != nil {
+		log.Println("Error extracting admin ID:", err)
+		return nil, err
+	}
+
+	err = h.RouteUsecase.AddRoute(strconv.Itoa(adminID), models.Route{
 		RouteName:   req.GetRouteName(),
 		StartStopID: int(req.GetStartStopId()),
 		EndStopID:   int(req.GetEndStopId()),
 		CategoryID:  int(req.GetCategoryId()),
-	}
-
-	err := h.RouteUsecase.AddRoute(route)
+	})
 	if err != nil {
 		log.Println("Failed to add route:", err)
 		return nil, err
@@ -37,15 +57,18 @@ func (h *RouteHandler) AddRoute(ctx context.Context, req *pb.AddRouteRequest) (*
 }
 
 func (h *RouteHandler) UpdateRoute(ctx context.Context, req *pb.UpdateRouteRequest) (*pb.UpdateRouteResponse, error) {
-	route := models.Route{
-		RouteID:     int(req.GetRouteId()),
+	adminID, err := h.extractAdminID(ctx)
+	if err != nil {
+		log.Println("Error extracting admin ID:", err)
+		return nil, err
+	}
+
+	err = h.RouteUsecase.UpdateRoute(strconv.Itoa(adminID), int(req.GetRouteId()), models.Route{
 		RouteName:   req.GetRouteName(),
 		StartStopID: int(req.GetStartStopId()),
 		EndStopID:   int(req.GetEndStopId()),
 		CategoryID:  int(req.GetCategoryId()),
-	}
-
-	err := h.RouteUsecase.UpdateRoute(route.RouteID, route)
+	})
 	if err != nil {
 		log.Println("Failed to update route:", err)
 		return nil, err
@@ -55,7 +78,13 @@ func (h *RouteHandler) UpdateRoute(ctx context.Context, req *pb.UpdateRouteReque
 }
 
 func (h *RouteHandler) DeleteRoute(ctx context.Context, req *pb.DeleteRouteRequest) (*pb.DeleteRouteResponse, error) {
-	err := h.RouteUsecase.DeleteRoute(int(req.GetRouteId()))
+	adminID, err := h.extractAdminID(ctx)
+	if err != nil {
+		log.Println("Error extracting admin ID:", err)
+		return nil, err
+	}
+
+	err = h.RouteUsecase.DeleteRoute(strconv.Itoa(adminID), int(req.GetRouteId()))
 	if err != nil {
 		log.Println("Failed to delete route:", err)
 		return nil, err
@@ -65,7 +94,13 @@ func (h *RouteHandler) DeleteRoute(ctx context.Context, req *pb.DeleteRouteReque
 }
 
 func (h *RouteHandler) GetAllRoutes(ctx context.Context, req *pb.GetAllRoutesRequest) (*pb.GetAllRoutesResponse, error) {
-	routes, err := h.RouteUsecase.GetAllRoutes()
+	adminID, err := h.extractAdminID(ctx)
+	if err != nil {
+		log.Println("Error extracting admin ID:", err)
+		return nil, err
+	}
+
+	routes, err := h.RouteUsecase.GetAllRoutes(strconv.Itoa(adminID))
 	if err != nil {
 		log.Println("Failed to get all routes:", err)
 		return nil, err

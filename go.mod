@@ -3,10 +3,12 @@ module github.com/Prototype-1/admin_routes_service
 go 1.22.1
 
 require (
+	github.com/Prototype-1/admin-auth-service v0.0.0-20250203090108-c06f1b75dbd2
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
+	github.com/golang-jwt/jwt/v4 v4.5.1
 	github.com/joho/godotenv v1.5.1
 	google.golang.org/grpc v1.70.0
-	google.golang.org/protobuf v1.35.2
+	google.golang.org/protobuf v1.36.4
 	gorm.io/driver/postgres v1.5.11
 	gorm.io/gorm v1.25.12
 )
