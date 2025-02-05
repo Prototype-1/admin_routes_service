@@ -22,10 +22,14 @@ func init() {
         log.Fatal("JWT_SECRET_KEY is not set")
     }
     jwtSecretKey = []byte(key)
-    fmt.Println("Loaded JWT Secret Key:", jwtSecretKey)
+    fmt.Println("Loaded JWT Secret Key:", string(jwtSecretKey))
 }
 
-func ParseJWT(tokenStr string) (uint, error) {
+func GetJWTSecret() []byte {
+    return jwtSecretKey
+}
+
+func ParseJWT(tokenStr string) (int, error) {
 	if len(jwtSecretKey) == 0 {
 		return 0, errors.New("JWT_SECRET_KEY is not set")
 	}
@@ -62,7 +66,7 @@ func ParseJWT(tokenStr string) (uint, error) {
 	return adminID, nil
 }
 
-func extractAdminID(claims jwt.MapClaims) (uint, error) {
+func extractAdminID(claims jwt.MapClaims) (int, error) {
 	rawAdminID, exists := claims["admin_id"]
 	if !exists {
 		return 0, errors.New("missing admin_id in token claims")
@@ -70,13 +74,13 @@ func extractAdminID(claims jwt.MapClaims) (uint, error) {
 
 	switch v := rawAdminID.(type) {
 	case float64:
-		return uint(v), nil
+		return int(v), nil
 	case string:
 		id, err := strconv.Atoi(v)
 		if err != nil {
 			return 0, fmt.Errorf("invalid admin_id format: %v", v)
 		}
-		return uint(id), nil
+		return id, nil
 	default:
 		return 0, fmt.Errorf("unsupported admin_id type: %T", v)
 	}
