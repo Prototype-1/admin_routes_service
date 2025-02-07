@@ -5,19 +5,13 @@ import (
 	"log"
 	"net"
 	"os"
-
-	authpb "github.com/Prototype-1/admin-auth-service/proto"
 	"github.com/Prototype-1/admin_routes_service/internal/handler"
-	"github.com/Prototype-1/admin_routes_service/internal/middleware"
 	"github.com/Prototype-1/admin_routes_service/internal/repository"
 	"github.com/Prototype-1/admin_routes_service/internal/usecase"
 	pb "github.com/Prototype-1/admin_routes_service/proto"
-	db "github.com/Prototype-1/admin_routes_service/utils"
+	"github.com/Prototype-1/admin_routes_service/utils"
 	"github.com/joho/godotenv"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/reflection"
-	"context"
 )
 
 func StartServer() {
@@ -28,41 +22,29 @@ func StartServer() {
 
     jwtSecretKey := os.Getenv("JWT_SECRET_KEY")
     if jwtSecretKey == "" {
-        log.Fatal("JWT_SECRET_KEY environment variable is not set")
+        utils.Log.Fatal("JWT_SECRET_KEY environment variable is not set")
     }
     fmt.Println("JWT_SECRET_KEY successfully loaded")
 
-    database := db.InitDB()
+    utils.InitLogger() 
+	utils.Log.Info("Logger initialized successfully")
 
-conn, err := grpc.DialContext(
-    context.Background(),
-    "localhost:50051",
-    grpc.WithTransportCredentials(insecure.NewCredentials()),
-)
-if err != nil {
-    log.Fatal("Failed to create gRPC client:", err)
-}
-defer conn.Close()
+    database := utils.InitDB()
 
-authClient := authpb.NewAdminServiceClient(conn)
 
     routeRepo := repository.NewRouteRepository(database)
-    routeUsecase := usecase.NewRouteUsecase(routeRepo, authClient) 
-    routeHandler := handler.NewRouteHandler(routeUsecase)
+	routeUsecase := usecase.NewRouteUsecase(routeRepo)
+	routeServer := handlers.NewRouteServer(routeUsecase)
 
-    grpcServer := grpc.NewServer(
-        grpc.UnaryInterceptor(middleware.JWTAuthInterceptor()), 
-    )
+    grpcServer := grpc.NewServer()
+	pb.RegisterRouteServiceServer(grpcServer, routeServer)
 
-    pb.RegisterRouteServiceServer(grpcServer, routeHandler)
-    reflection.Register(grpcServer)
-
-    listener, err := net.Listen("tcp", ":50052")
+    listener, err := net.Listen("tcp", ":50053")
     if err != nil {
         log.Fatal("Failed to listen:", err)
     }
 
-    fmt.Println("Starting gRPC server on port 50052...")
+    fmt.Println("Starting gRPC server on port 50053...")
     if err := grpcServer.Serve(listener); err != nil {
         log.Fatal("Failed to serve gRPC server:", err)
     }

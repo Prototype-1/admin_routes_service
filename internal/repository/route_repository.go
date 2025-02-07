@@ -6,38 +6,36 @@ import (
 )
 
 type RouteRepository interface {
-    AddRoute(route models.Route) error
-    UpdateRoute(route models.Route) error
-    DeleteRoute(id int) error
-    GetAllRoutes() ([]models.Route, error)
+	AddRoute(route *models.Route) error
+	UpdateRoute(route *models.Route) error
+	DeleteRoute(routeID int) error
+	GetAllRoutes() ([]models.Route, error)
 }
 
-type RouteRepositoryImpl struct {
-	DB *gorm.DB
+type routeRepositoryImpl struct {
+	db *gorm.DB
 }
 
-func NewRouteRepository(db *gorm.DB) *RouteRepositoryImpl {
-    return &RouteRepositoryImpl{DB: db}
+func NewRouteRepository(db *gorm.DB) RouteRepository {
+	return &routeRepositoryImpl{db: db}
 }
 
-func (r *RouteRepositoryImpl) AddRoute(route models.Route) error {
-	return r.DB.Create(&route).Error
+func (r *routeRepositoryImpl) AddRoute(route *models.Route) error {
+	return r.db.Create(route).Error
 }
 
-func (r *RouteRepositoryImpl) UpdateRoute(route models.Route) error {
-    return r.DB.Save(&route).Error
+func (r *routeRepositoryImpl) UpdateRoute(route *models.Route) error {
+	return r.db.Model(&models.Route{}).
+		Where("route_id = ?", route.RouteID).
+		Updates(route).Error
 }
 
-func (r *RouteRepositoryImpl) DeleteRoute(id int) error {
-    var route models.Route
-    if err := r.DB.First(&route, id).Error; err != nil {
-        return err
-    }
-    return r.DB.Delete(&route).Error
+func (r *routeRepositoryImpl) DeleteRoute(routeID int) error {
+	return r.db.Delete(&models.Route{}, routeID).Error
 }
 
-func (r *RouteRepositoryImpl) GetAllRoutes() ([]models.Route, error) {
-    var routes []models.Route
-    err := r.DB.Find(&routes).Error
-    return routes, err
+func (r *routeRepositoryImpl) GetAllRoutes() ([]models.Route, error) {
+	var routes []models.Route
+	err := r.db.Find(&routes).Error
+	return routes, err
 }
