@@ -29,9 +29,9 @@ func GetJWTSecret() []byte {
     return jwtSecretKey
 }
 
-func ParseJWT(tokenStr string) (int, error) {
+func ParseJWT(tokenStr string) (int, string, error) {
 	if len(jwtSecretKey) == 0 {
-		return 0, errors.New("JWT_SECRET_KEY is not set")
+		return 0, "", errors.New("JWT_SECRET_KEY is not set")
 	}
 
 	log.Println("Using JWT Secret Key:", string(jwtSecretKey)) 
@@ -45,13 +45,13 @@ func ParseJWT(tokenStr string) (int, error) {
 	})
 	if err != nil {
 		log.Println("JWT Parsing Error:", err)
-		return 0, fmt.Errorf("failed to parse JWT: %w", err)
+		return 0, "", fmt.Errorf("failed to parse JWT: %w", err)
 	}
 
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok || !token.Valid {
 		log.Println("Invalid token claims:", claims)
-		return 0, errors.New("invalid token claims")
+		return 0, "", errors.New("invalid token claims")
 	}
 
 	log.Println("Extracted Claims:", claims)
@@ -59,11 +59,30 @@ func ParseJWT(tokenStr string) (int, error) {
 	adminID, err := extractAdminID(claims)
 	if err != nil {
 		log.Println("Error extracting admin_id:", err)
-		return 0, err
+		return 0, "", err
 	}
 
-	log.Println("Extracted admin_id:", adminID)
-	return adminID, nil
+	role, err := extractRole(claims)
+	if err != nil {
+		log.Println("Error extracting role:", err)
+		return 0, "", err
+	}
+
+	log.Println("Extracted admin_id:", adminID, "Role:", role)
+	return adminID, role, nil
+}
+
+func extractRole(claims jwt.MapClaims) (string, error) {
+	rawRole, exists := claims["role"]
+	if !exists {
+		return "", errors.New("missing role in token claims")
+	}
+
+	role, ok := rawRole.(string)
+	if !ok {
+		return "", fmt.Errorf("invalid role format: %v", rawRole)
+	}
+	return role, nil
 }
 
 func extractAdminID(claims jwt.MapClaims) (int, error) {

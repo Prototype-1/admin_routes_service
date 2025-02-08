@@ -7,6 +7,10 @@ import (
 	"github.com/Prototype-1/admin_routes_service/internal/models"
 	"github.com/Prototype-1/admin_routes_service/internal/usecase"
 	pb "github.com/Prototype-1/admin_routes_service/proto"
+	"github.com/Prototype-1/admin_routes_service/utils"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"google.golang.org/grpc/metadata"
 )
 
 type RouteServer struct {
@@ -19,6 +23,22 @@ func NewRouteServer(usecase usecase.RouteUsecase) *RouteServer {
 }
 
 func (s *RouteServer) AddRoute(ctx context.Context, req *pb.AddRouteRequest) (*pb.AddRouteResponse, error) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "missing metadata")
+	}
+
+	token := md["authorization"][0] 
+
+	_, role, err := utils.ParseJWT(token)
+	if err != nil {
+		return nil, status.Errorf(codes.Unauthenticated, "invalid token: %v", err)
+	}
+
+	if role != "admin" {
+		return nil, status.Errorf(codes.PermissionDenied, "only admins can add routes")
+	}
+
 	route := &models.Route{
 		RouteName:   req.RouteName,
 		StartStopID: int(req.StartStopId),
@@ -26,7 +46,7 @@ func (s *RouteServer) AddRoute(ctx context.Context, req *pb.AddRouteRequest) (*p
 		CategoryID:  int(req.CategoryId),
 	}
 
-	err := s.usecase.AddRoute(route)
+	err = s.usecase.AddRoute(route)
 	if err != nil {
 		log.Printf("Failed to add route: %v", err)
 		return nil, err
@@ -36,6 +56,21 @@ func (s *RouteServer) AddRoute(ctx context.Context, req *pb.AddRouteRequest) (*p
 }
 
 func (s *RouteServer) UpdateRoute(ctx context.Context, req *pb.UpdateRouteRequest) (*pb.UpdateRouteResponse, error) {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "missing metadata")
+	}
+
+	token := md["authorization"][0]
+	_, role, err := utils.ParseJWT(token)
+	if err != nil {
+		return nil, status.Errorf(codes.Unauthenticated, "invalid token: %v", err)
+	}
+
+	if role != "admin" {
+		return nil, status.Errorf(codes.PermissionDenied, "only admins can update routes")
+	}
+
 	route := &models.Route{
 		RouteID:     int(req.RouteId),
 		RouteName:   req.RouteName,
@@ -44,7 +79,7 @@ func (s *RouteServer) UpdateRoute(ctx context.Context, req *pb.UpdateRouteReques
 		CategoryID:  int(req.CategoryId),
 	}
 
-	err := s.usecase.UpdateRoute(route)
+	err = s.usecase.UpdateRoute(route)
 	if err != nil {
 		log.Printf("Failed to update route: %v", err)
 		return nil, err
@@ -54,7 +89,21 @@ func (s *RouteServer) UpdateRoute(ctx context.Context, req *pb.UpdateRouteReques
 }
 
 func (s *RouteServer) DeleteRoute(ctx context.Context, req *pb.DeleteRouteRequest) (*pb.DeleteRouteResponse, error) {
-	err := s.usecase.DeleteRoute(int(req.RouteId))
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "missing metadata")
+	}
+
+	token := md["authorization"][0]
+	_, role, err := utils.ParseJWT(token)
+	if err != nil {
+		return nil, status.Errorf(codes.Unauthenticated, "invalid token: %v", err)
+	}
+
+	if role != "admin" {
+		return nil, status.Errorf(codes.PermissionDenied, "only admins can delete routes")
+	}
+	err = s.usecase.DeleteRoute(int(req.RouteId))
 	if err != nil {
 		log.Printf("Failed to delete route: %v", err)
 		return nil, err
