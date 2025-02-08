@@ -23,37 +23,32 @@ func NewRouteServer(usecase usecase.RouteUsecase) *RouteServer {
 }
 
 func (s *RouteServer) AddRoute(ctx context.Context, req *pb.AddRouteRequest) (*pb.AddRouteResponse, error) {
-	md, ok := metadata.FromIncomingContext(ctx)
-	if !ok {
-		return nil, status.Errorf(codes.Unauthenticated, "missing metadata")
-	}
+    md, ok := metadata.FromIncomingContext(ctx)
+    if !ok {
+        return nil, status.Errorf(codes.Unauthenticated, "missing metadata")
+    }
 
-	token := md["authorization"][0] 
+    authHeader, exists := md["authorization"]
+    if !exists || len(authHeader) == 0 {
+        return nil, status.Errorf(codes.Unauthenticated, "authorization token missing")
+    }
 
-	_, role, err := utils.ParseJWT(token)
-	if err != nil {
-		return nil, status.Errorf(codes.Unauthenticated, "invalid token: %v", err)
-	}
+    token := authHeader[0] 
 
-	if role != "admin" {
-		return nil, status.Errorf(codes.PermissionDenied, "only admins can add routes")
-	}
+    _, role, err := utils.ParseJWT(token)
+    if err != nil {
+        return nil, status.Errorf(codes.Unauthenticated, "invalid token: %v", err)
+    }
 
-	route := &models.Route{
-		RouteName:   req.RouteName,
-		StartStopID: int(req.StartStopId),
-		EndStopID:   int(req.EndStopId),
-		CategoryID:  int(req.CategoryId),
-	}
+    if role != "admin" {
+        return nil, status.Errorf(codes.PermissionDenied, "only admins can add routes")
+    }
 
-	err = s.usecase.AddRoute(route)
-	if err != nil {
-		log.Printf("Failed to add route: %v", err)
-		return nil, err
-	}
+    log.Println("Authorization successful, role:", role)
 
-	return &pb.AddRouteResponse{Message: "Route added successfully"}, nil
+    return &pb.AddRouteResponse{Message: "Route added successfully"}, nil
 }
+
 
 func (s *RouteServer) UpdateRoute(ctx context.Context, req *pb.UpdateRouteRequest) (*pb.UpdateRouteResponse, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
