@@ -39,7 +39,7 @@ func StartServer() {
     grpcServer := grpc.NewServer()
 	pb.RegisterRouteServiceServer(grpcServer, routeServer)
 
-    listener, err := net.Listen("tcp", ":50053")
+    listener, err := net.Listen("tcp", "0.0.0.0:50053")
     if err != nil {
         log.Fatal("Failed to listen:", err)
     }
