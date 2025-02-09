@@ -33,7 +33,7 @@ func (s *RouteServer) AddRoute(ctx context.Context, req *pb.AddRouteRequest) (*p
         return nil, status.Errorf(codes.Unauthenticated, "authorization token missing")
     }
 
-    token := authHeader[0] 
+    token := authHeader[0]
 
     _, role, err := utils.ParseJWT(token)
     if err != nil {
@@ -46,9 +46,21 @@ func (s *RouteServer) AddRoute(ctx context.Context, req *pb.AddRouteRequest) (*p
 
     log.Println("Authorization successful, role:", role)
 
+    route := &models.Route{
+        RouteName:   req.RouteName,
+        StartStopID: int(req.StartStopId),
+        EndStopID:   int(req.EndStopId),
+        CategoryID:  int(req.CategoryId),
+    }
+
+    err = s.usecase.AddRoute(route)
+    if err != nil {
+        log.Printf("Failed to add route: %v", err)
+        return nil, status.Errorf(codes.Internal, "failed to add route: %v", err)
+    }
+
     return &pb.AddRouteResponse{Message: "Route added successfully"}, nil
 }
-
 
 func (s *RouteServer) UpdateRoute(ctx context.Context, req *pb.UpdateRouteRequest) (*pb.UpdateRouteResponse, error) {
 	md, ok := metadata.FromIncomingContext(ctx)
@@ -56,7 +68,12 @@ func (s *RouteServer) UpdateRoute(ctx context.Context, req *pb.UpdateRouteReques
 		return nil, status.Errorf(codes.Unauthenticated, "missing metadata")
 	}
 
-	token := md["authorization"][0]
+	authHeader, exists := md["authorization"]
+	if !exists || len(authHeader) == 0 {
+		return nil, status.Errorf(codes.Unauthenticated, "authorization token missing")
+	}
+
+	token := authHeader[0]
 	_, role, err := utils.ParseJWT(token)
 	if err != nil {
 		return nil, status.Errorf(codes.Unauthenticated, "invalid token: %v", err)
@@ -65,19 +82,20 @@ func (s *RouteServer) UpdateRoute(ctx context.Context, req *pb.UpdateRouteReques
 	if role != "admin" {
 		return nil, status.Errorf(codes.PermissionDenied, "only admins can update routes")
 	}
-
-	route := &models.Route{
-		RouteID:     int(req.RouteId),
-		RouteName:   req.RouteName,
-		StartStopID: int(req.StartStopId),
-		EndStopID:   int(req.EndStopId),
-		CategoryID:  int(req.CategoryId),
+	existingRoute, err := s.usecase.GetRouteByID(int(req.RouteId))
+	if err != nil {
+		log.Printf("Route not found: %v", err)
+		return nil, status.Errorf(codes.NotFound, "route not found")
 	}
+	existingRoute.RouteName = req.RouteName
+	existingRoute.StartStopID = int(req.StartStopId)
+	existingRoute.EndStopID = int(req.EndStopId)
+	existingRoute.CategoryID = int(req.CategoryId)
 
-	err = s.usecase.UpdateRoute(route)
+	err = s.usecase.UpdateRoute(existingRoute)
 	if err != nil {
 		log.Printf("Failed to update route: %v", err)
-		return nil, err
+		return nil, status.Errorf(codes.Internal, "failed to update route")
 	}
 
 	return &pb.UpdateRouteResponse{Message: "Route updated successfully"}, nil
@@ -89,7 +107,12 @@ func (s *RouteServer) DeleteRoute(ctx context.Context, req *pb.DeleteRouteReques
 		return nil, status.Errorf(codes.Unauthenticated, "missing metadata")
 	}
 
-	token := md["authorization"][0]
+	authHeader, exists := md["authorization"]
+	if !exists || len(authHeader) == 0 {
+		return nil, status.Errorf(codes.Unauthenticated, "authorization token missing")
+	}
+
+	token := authHeader[0]
 	_, role, err := utils.ParseJWT(token)
 	if err != nil {
 		return nil, status.Errorf(codes.Unauthenticated, "invalid token: %v", err)
@@ -98,14 +121,21 @@ func (s *RouteServer) DeleteRoute(ctx context.Context, req *pb.DeleteRouteReques
 	if role != "admin" {
 		return nil, status.Errorf(codes.PermissionDenied, "only admins can delete routes")
 	}
-	err = s.usecase.DeleteRoute(int(req.RouteId))
+
+	existingRoute, err := s.usecase.GetRouteByID(int(req.RouteId))
+	if err != nil {
+		log.Printf("Route not found: %v", err)
+		return nil, status.Errorf(codes.NotFound, "route not found")
+	}
+	err = s.usecase.DeleteRoute(existingRoute.RouteID)
 	if err != nil {
 		log.Printf("Failed to delete route: %v", err)
-		return nil, err
+		return nil, status.Errorf(codes.Internal, "failed to delete route")
 	}
 
 	return &pb.DeleteRouteResponse{Message: "Route deleted successfully"}, nil
 }
+
 
 func (s *RouteServer) GetAllRoutes(ctx context.Context, req *pb.GetAllRoutesRequest) (*pb.GetAllRoutesResponse, error) {
 	routes, err := s.usecase.GetAllRoutes()

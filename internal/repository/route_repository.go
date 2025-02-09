@@ -3,6 +3,7 @@ package repository
 import (
 	"github.com/Prototype-1/admin_routes_service/internal/models"
 	"gorm.io/gorm"
+	"errors"
 )
 
 type RouteRepository interface {
@@ -10,6 +11,7 @@ type RouteRepository interface {
 	UpdateRoute(route *models.Route) error
 	DeleteRoute(routeID int) error
 	GetAllRoutes() ([]models.Route, error)
+	GetRouteByID(routeID int) (*models.Route, error) 
 }
 
 type routeRepositoryImpl struct {
@@ -39,3 +41,16 @@ func (r *routeRepositoryImpl) GetAllRoutes() ([]models.Route, error) {
 	err := r.db.Find(&routes).Error
 	return routes, err
 }
+
+func (r *routeRepositoryImpl) GetRouteByID(routeID int) (*models.Route, error) {
+	var route models.Route
+	err := r.db.Where("route_id = ?", routeID).First(&route).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("route not found")
+		}
+		return nil, err
+	}
+	return &route, nil
+}
+
