@@ -1,25 +1,31 @@
- # Use official Golang image as base
-FROM golang:1.20
-
-# Set environment variables
-ENV GO111MODULE=on \
-    CGO_ENABLED=0 \
-    GOOS=linux \
-    GOARCH=amd64
-
-# Set working directory
+# Build the Go application
+FROM golang:1.22 AS builder
 WORKDIR /app
 
-# Copy the Go modules
+# Copy go modules and download dependencies
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Copy source code
-COPY . .
+# Copy the rest of the application
+COPY . ./
 
-# Build the application
-RUN go build -o admin_routes_service .
+# Build the Go application (use ./main.go instead of ./cmd/main.go)
+RUN CGO_ENABLED=0 go build -o admin-routes-service ./main.go
 
-# Command to run the executable
-CMD ["/app/admin_routes_service"]
+# Minimal image for execution
+FROM debian:bullseye-slim
 
+# Install necessary dependencies
+RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy binary from builder stage
+COPY --from=builder /app/admin-routes-service /app/admin-routes-service
+COPY --from=builder /app/.env /app/.env
+
+# Expose gRPC port 50053
+EXPOSE 50053
+
+# Run the service
+CMD ["/app/admin-routes-service"]
